@@ -4,6 +4,9 @@ import torch
 import torchvision.transforms as transforms
 from collections import OrderedDict
 from torchvision import models
+from fuzzy import *
+from vals_for_labels import *
+
 # Reconstruct the model
 model = models.resnet50()
 model.fc = torch.nn.Linear(model.fc.in_features, 101)
@@ -20,82 +23,16 @@ transform = transforms.Compose([
                          std=[0.229, 0.224, 0.225]),
 ])
 
-# Food storage zones
-top_shelf = [
-    'pad_thai', 'paella', 'pancakes',
-    'pho', 'french_onion_soup', 'pizza', 'bibimbap', 'bread_pudding',
-    'fried_rice', 'bruschetta', 'ramen', 'risotto', 'chicken_curry', 'hamburger',
-    'hot_and_sour_soup', 'hot_dog', 'spaghetti_bolognese', 'spaghetti_carbonara',
-    'clam_chowder', 'lasagna', 'club_sandwich', 'tacos', 'macaroni_and_cheese',
-    'croque_madame', 'miso_soup', 'nachos'
-]
-
-middle_shelf = [
-    'eggs_benedict', 'french_toast', 'omelette',
-    'grilled_cheese_sandwich', 'breakfast_burrito', 'deviled_eggs'
-]
-
-lower_shelf = [
-    'beef_carpaccio', 'beef_tartare', 'ceviche', 'filet_mignon', 
-    'prime_rib', 'pork_chop', 'steak', 'foie_gras', 'lobster_bisque', 
-    'lobster_roll_sandwich'
-]
-
-crisper_drawer_left = [
-    'beet_salad', 'caesar_salad', 'caprese_salad', 'greek_salad',
-    'samosa', 'edamame', 'falafel', 'spring_rolls', 'onion_rings'
-]
-
-crisper_drawer_right = [
-    'apple_pie', 'strawberry_shortcake', 'carrot_cake', 'cup_cakes',
-    'red_velvet_cake', 'macarons', 'baklava', 'chocolate_cake', 
-    'chocolate_mousse', 'cheesecake', 'creme_brulee', 'panna_cotta', 
-    'beignets', 'cannoli', 'frozen_yogurt', 'tiramisu', 'waffles'
-]
-
-door_shelves = [
-    'guacamole', 'hummus', 'garlic_bread', 'cheese_plate', 'deviled_eggs',
-    'french_fries', 'churros', 'donuts'
-]
-
-upper_freezer_drawers = [
-    'dumplings', 'gnocchi', 'ravioli', 'takoyaki', 'samosa',
-    'gyoza', 'chicken_quesadilla', 'shrimp_and_grits'
-]
-
-middle_freezer_drawers = [
-    'scallops', 'grilled_salmon', 'mussels', 'oysters',
-    'crab_cakes', 'sashimi', 'sushi', 'tuna_tartare'
-]
-
-bottom_freezer_drawers = [
-    'ice_cream',  'frozen_yogurt'
-]
-
-# Combine all for lookup
-zones = {
-    "Top Shelf": top_shelf,
-    "Middle Shelf": middle_shelf,
-    "Lower Shelf": lower_shelf,
-    "Crisper Drawer (Left)": crisper_drawer_left,
-    "Crisper Drawer (Right)": crisper_drawer_right,
-    "Door Shelves": door_shelves,
-    "Upper Freezer Drawers": upper_freezer_drawers,
-    "Middle Freezer Drawers": middle_freezer_drawers,
-    "Bottom Freezer Drawers": bottom_freezer_drawers
-}
-
-
 advices = {
-    "Top Shelf": " (for ready-to-eat meals, deli items and leftovers)",
-    "Middle Shelf": " (for dairy, eggs and drinks)",
-    "Lower Shelf": " (for raw meat and fish)",
-    "Crisper Drawer (Left)": " (for vegetables)",
-    "Crisper Drawer (Right)": " (for fruits and desserts)",
-    "Door Shelves": " (for condiments, sauces, juices, butter)",
-    "Upper Freezer Drawers": " (for frozen veggies and prepped meals)",
-    "Middle Freezer Drawers": " (for frozen meat and seafood)",
-    "Bottom Freezer Drawers": " (for ice cream and frozen desserts)"
+    "Top Shelf": "This is the most accessible shelf with stable temperature. It's recommended to use for ready-to-eat items, leftovers, drinks, and foods with low moisture, low to medium sensitivity and short to medium storage time.",
+    "Middle Shelf": "This shelf has consistent temperature, good for dairy and foods that don't spoil too quickly. It is good for products with medium moisture, medium sensitivity and medium storage time.",
+    "Lower Shelf": "This shelf is the coldest part of the fridge, ideal for raw ingredients. It's best for storing products with high moisture, medium sensitivity and longer storage time.",
+    "Crisper Drawer (Left)": "It's a high-humidity drawer. The conditions are good for products with high moisture, medium to high sensitivity and short to medium storage time - usually leafy vegetables and herbs.",
+    "Crisper Drawer (Right)": "This drawer has low humidity, whisch makes it great for storing produce with lower moisture and longer storage time, like fruits and hardy vegetables.",
+    "Door Shelves": "This is the warmest part of the fridge, exposed to temperature changes. It is recommended for items with low sensitivity, low moisture and short storage time.",
+    "Upper Freezer Drawers": "It's a slightly warmer part of freezer, so it could be used for storing items that need freezing but with shorter storage durations or for frequent use, like ice cream.",
+    "Middle Freezer Drawers": "This drawer is stable and consistently cold. It's recommended for products with medium moisture, medium sensitivity, medium to long storage.",
+    "Bottom Freezer Drawers": "It's the coldest area of the freezer. It's great for long-term frozen storage with high moisture, high sensitivity, and long storage time."
 }
 
 with open("labels.txt", "r") as f:
@@ -131,9 +68,12 @@ zone_images = {
 
 # Modify the function to also return the zone name
 def get_storage_advice(label):
-    for zone, items in zones.items():
+    for items, vals in food_fuzzy_values.items():
         if label in items:
-            return zone, f"Store in: **{zone}**" + advices[zone]
+            shelf_sim.input['moisture'], shelf_sim.input['sensitivity'], shelf_sim.input['storage_time'] = vals
+            shelf_sim.compute()
+            zone = interpret_shelf(shelf_sim.output['shelf'])
+            return zone, f"Store in: {zone}" + ". " + advices[zone]
     return None, "No specific storage advice available."
 
 # In the col1 section (fridge image), show default image first
@@ -158,9 +98,8 @@ with col2:
                 label = food_labels[predicted_idx]
                 st.success(f"**Prediction:** {label.replace('_', ' ').title()}")
 
-                zone, advice_text = get_storage_advice(label)
-                st.info(advice_text)
-
+                zone, shelf = get_storage_advice(label)
+                st.info(shelf)
                 # Show specific fridge image if available
                 if zone in zone_images:
                     fridge_img_placeholder.image(zone_images[zone], caption=f"Recommended zone: {zone}", use_container_width=True)
