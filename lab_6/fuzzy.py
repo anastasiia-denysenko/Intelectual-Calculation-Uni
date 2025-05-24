@@ -34,7 +34,7 @@ shelf['freezer_upper'] = fuzz.trimf(shelf.universe, [80, 83, 86])
 shelf['freezer_middle'] = fuzz.trimf(shelf.universe, [86, 90, 94])
 shelf['freezer_bottom'] = fuzz.trimf(shelf.universe, [94, 97, 100])
 
-# Define example rules (expand as needed)
+# Define example rules
 rules = [
     ctrl.Rule(moisture['low'] & sensitivity['low'] & storage_time['short'], shelf['top_shelf']),
     ctrl.Rule(moisture['low'] & sensitivity['low'] & storage_time['medium'], shelf['middle_shelf']),
