@@ -35,8 +35,7 @@ advices = {
     "Bottom Freezer Drawers": "It's the coldest area of the freezer. It's great for long-term frozen storage with high moisture, high sensitivity, and long storage time."
 }
 
-with open("labels.txt", "r") as f:
-    food_labels = [line.strip() for line in f]
+food_labels = food_fuzzy_values.keys()
 
 # Remove duplicates while preserving order
 food_labels = list(OrderedDict.fromkeys(food_labels))
