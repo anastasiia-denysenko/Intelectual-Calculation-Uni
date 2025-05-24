@@ -66,7 +66,6 @@ zone_images = {
     "Bottom Freezer Drawers": "bottom_freezer_drawers.png"
 }
 
-# Modify the function to also return the zone name
 def get_storage_advice(label):
     for items, vals in food_fuzzy_values.items():
         if label in items:
